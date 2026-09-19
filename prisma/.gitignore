@@ -1,0 +1,19 @@
+# Dipendenze
+node_modules/
+
+# Variabili d'ambiente e segreti - MAI da caricare su Git
+.env
+.env.local
+*.pem
+*.key
+
+# Prisma
+prisma/*.db
+
+# Log
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
