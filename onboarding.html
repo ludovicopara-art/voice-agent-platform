@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Onboarding nuovo cliente</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+  label { display: block; margin-top: 12px; font-size: 14px; color: #333; }
+  input, select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+  button { margin-top: 20px; padding: 10px 16px; cursor: pointer; }
+  #risultato { margin-top: 20px; padding: 12px; background: #f5f5f5; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+  <h2>Nuovo cliente</h2>
+  <p style="color:#666; font-size:14px;">Pannello ad uso interno (tuo). Non esporlo pubblicamente senza aggiungere un vero login.</p>
+
+  <label>Admin key
+    <input id="adminKey" type="password" placeholder="La tua ADMIN_API_KEY">
+  </label>
+  <label>Nome attività
+    <input id="businessName" placeholder="Trattoria Da Ludovico">
+  </label>
+  <label>Tipo attività
+    <select id="businessType">
+      <option value="ristorante">Ristorante</option>
+      <option value="studio_dentistico">Studio dentistico</option>
+      <option value="studio_medico">Studio medico</option>
+      <option value="altro">Altro</option>
+    </select>
+  </label>
+  <label>Numero Twilio assegnato
+    <input id="twilioPhoneNumber" placeholder="+390000000000">
+  </label>
+  <label>Orari di apertura
+    <input id="openingHours" placeholder="Martedi-Domenica 12:00-15:00 e 19:00-23:00">
+  </label>
+  <label>Indirizzo
+    <input id="address" placeholder="Corso Strada Nuova 5, Pavia">
+  </label>
+  <label>Durata slot (minuti)
+    <input id="durataAppuntamentoMin" type="number" value="60">
+  </label>
+  <label>Numero operatore umano (opzionale)
+    <input id="humanOperatorNumber" placeholder="+390000000001">
+  </label>
+
+  <button onclick="creaTenant()">Crea cliente</button>
+
+  <div id="risultato"></div>
+
+<script>
+async function creaTenant() {
+  const body = {
+    businessName: document.getElementById('businessName').value,
+    businessType: document.getElementById('businessType').value,
+    twilioPhoneNumber: document.getElementById('twilioPhoneNumber').value,
+    openingHours: document.getElementById('openingHours').value,
+    address: document.getElementById('address').value,
+    durataAppuntamentoMin: parseInt(document.getElementById('durataAppuntamentoMin').value, 10),
+    humanOperatorNumber: document.getElementById('humanOperatorNumber').value || null,
+  };
+
+  const res = await fetch('/admin/tenants', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-key': document.getElementById('adminKey').value,
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  document.getElementById('risultato').innerText =
+    res.ok
+      ? `Cliente creato!\n\nManda al cliente questo link per collegare il suo Google Calendar:\n${data.linkCollegamentoCalendario}`
+      : `Errore: ${data.errore}`;
+}
+</script>
+</body>
+</html>
