@@ -1,62 +1,22 @@
-// src/claudeAgent.js
-const Anthropic = require("@anthropic-ai/sdk");
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-function costruisciSystemPrompt(tenant) {
-  const vincoloGruppo = tenant.maxPartySizeNoHuman
-    ? `Se la richiesta supera ${tenant.maxPartySizeNoHuman} persone, trasferisci a un operatore umano (intent "operatore").`
-    : "";
-
-  return `
-Sei la segretaria telefonica virtuale di "${tenant.businessName}" (${tenant.businessType}).
-Orari: ${tenant.openingHours}. Indirizzo: ${tenant.address}.
-
-Il tuo compito:
-- prenotare, spostare o cancellare un appuntamento/prenotazione
-- confermare un appuntamento esistente
-- rispondere a domande su orari e indirizzo
-${vincoloGruppo}
-
-Non dare mai consigli clinici, legali o specialistici: se richiesto, trasferisci
-a un operatore umano (intent "operatore").
-
-Rispondi SEMPRE e SOLO con un oggetto JSON valido:
-{
-  "intent": "prenota" | "sposta" | "cancella" | "conferma" | "info" | "operatore" | "altro",
-  "dati_raccolti": {
-    "nome_cliente": string|null,
-    "numero_persone": number|null,
-    "data_richiesta": string|null,
-    "ora_richiesta": string|null,
-    "note": string|null
-  },
-  "necessita_altre_info": boolean,
-  "risposta_vocale": string
-}
-`.trim();
-}
-
 async function interpretaTurno(history, tenant) {
-  const msg = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 500,
-    system: costruisciSystemPrompt(tenant),
-    messages: history,
+  const oggi = new Date().toLocaleDateString("it-IT", {
+    timeZone: tenant.timezone || "Europe/Rome",
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
-
-  const testo = msg.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-
   try {
-    return JSON.parse(testo);
-  } catch {
-    return {
-      intent: "altro",
-      dati_raccolti: {},
-      necessita_altre_info: true,
-      risposta_vocale: "Scusi, non ho capito bene. Può ripetere per favore?",
-    };
+    const msg = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 500,
+      system: costruisciSystemPrompt(tenant) + `\n\nOggi è ${oggi}. Interpreta date relative (domani, lunedì prossimo) rispetto a questa data e restituisci data_richiesta in formato YYYY-MM-DD e ora_richiesta in formato HH:MM.`,
+      messages: history,
+    });
+    const testo = msg.content.filter(b => b.type === "text").map(b => b.text).join("");
+    const inizio = testo.indexOf("{");
+    const fine = testo.lastIndexOf("}");
+    if (inizio === -1 || fine === -1) throw new Error("Nessun JSON nella risposta: " + testo);
+    return JSON.parse(testo.slice(inizio, fine + 1));
+  } catch (err) {
+    console.error("interpretaTurno errore:", err.message);
+    return { intent: "altro", dati_raccolti: {}, necessita_altre_info: true, risposta_vocale: "Scusi, può ripetere?" };
   }
 }
-
-module.exports = { interpretaTurno };
